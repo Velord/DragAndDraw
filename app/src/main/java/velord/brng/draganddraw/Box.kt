@@ -1,8 +1,11 @@
 package velord.brng.draganddraw
 
 import android.graphics.PointF
+import android.os.Parcelable
+import kotlinx.android.parcel.Parcelize
 
-data class Box(val start: PointF) {
+@Parcelize
+data class Box(var start: PointF) : Parcelable {
 
     var end: PointF = start
 

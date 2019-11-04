@@ -4,12 +4,17 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.PointF
+import android.os.Bundle
+import android.os.Parcelable
 import android.util.AttributeSet
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 
+
 private const val TAG = "BoxDrawingView"
+private const val BOXES = "boxes"
+private const val SUPER_STATE = "superState"
 
 class BoxDrawingView(context: Context,
                      attrs: AttributeSet? = null) : View(context, attrs) {
@@ -67,10 +72,66 @@ class BoxDrawingView(context: Context,
         }
     }
 
+    override fun setSaveEnabled(enabled: Boolean) {
+        super.setSaveEnabled(true)
+    }
+
+    override fun onSaveInstanceState(): Parcelable? {
+        return Bundle().apply {
+            putParcelable(SUPER_STATE, super.onSaveInstanceState())
+
+            putParcelableArrayList(BOXES, ArrayList<Parcelable>(boxen))
+        }
+    }
+
+    override fun onRestoreInstanceState(state: Parcelable?) {
+        var newState = state
+        if (newState is Bundle) {
+            this.boxen.addAll(
+                transformToPortraitOrLandscape(
+                    newState
+                    .getParcelableArrayList<Box>(BOXES)!!
+                    .toMutableList()
+                )
+            )
+            newState = newState.getParcelable(SUPER_STATE)
+        }
+        super.onRestoreInstanceState(newState)
+    }
+
+    private fun transformToPortraitOrLandscape(box: MutableList<Box>): MutableList<Box> {
+        val metrics = this.resources.displayMetrics
+        val dh = metrics.heightPixels
+        val dw = metrics.widthPixels
+        //stretch or squeeze
+        fun toNewDimension(box: Box): Pair<PointF, PointF> {
+            val coeffX: Float = (dw.toFloat() / dh.toFloat())
+            val coeffY: Float = (dh.toFloat() / dw.toFloat())
+            var x: Float = coeffX * box.start.x
+            var y: Float = coeffY * box.start.y
+            val newStart = PointF(x, y)
+
+            x = coeffX * box.end.x
+            y = coeffY * box.end.y
+            val newEnd = PointF(x, y)
+
+            return newStart to newEnd
+        }
+
+        return box.apply {
+            forEach {
+                val newPoints: Pair<PointF, PointF> = toNewDimension(it)
+                it.start = newPoints.first
+                it.end = newPoints.second
+            }
+        }
+    }
+
     private fun updateCurrentBox(current: PointF) {
         currentBox?.let {
             it.end = current
             invalidate()
         }
     }
+
 }
