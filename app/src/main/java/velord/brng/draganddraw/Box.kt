@@ -5,9 +5,12 @@ import android.os.Parcelable
 import kotlinx.android.parcel.Parcelize
 
 @Parcelize
-data class Box(var start: PointF) : Parcelable {
+data class Box(var start: PointF,
+               var end: PointF = start,
+               var angle: Float = 0.0F) : Parcelable {
 
-    var end: PointF = start
+
+    var anglePointer: PointF = PointF(0.0F, 0.0F)
 
     val left: Float
         get() = Math.min(start.x, end.x)

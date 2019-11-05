@@ -11,7 +11,6 @@ import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 
-
 private const val TAG = "BoxDrawingView"
 private const val BOXES = "boxes"
 private const val SUPER_STATE = "superState"
@@ -29,32 +28,34 @@ class BoxDrawingView(context: Context,
     }
 
     override fun onTouchEvent(event: MotionEvent?): Boolean {
-        val current = PointF(event!!.x, event.y)
+        val (boxStartPoint, anglePoint) = initTouchPointOnActionEvent(event)
+
         var action = ""
-        when (event.action) {
+        when (event!!.action) {
             MotionEvent.ACTION_DOWN -> {
                 action = "ACTION_DOWN"
                 // Reset drawing state
-                currentBox = Box(current).also {
-                    boxen.add(it)
-                }
+                actionDown(boxStartPoint)
+            }
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                action = "ACTION_DOWN"
+                actionPointerDown(anglePoint)
             }
             MotionEvent.ACTION_MOVE -> {
                 action = "ACTION_MOVE"
-                updateCurrentBox(current)
+                actionMove(boxStartPoint, anglePoint)
             }
             MotionEvent.ACTION_UP -> {
                 action = "ACTION_UP"
-                updateCurrentBox(current)
-                currentBox = null
+                actionUp(boxStartPoint)
             }
             MotionEvent.ACTION_CANCEL -> {
                 action = "ACTION_CANCEL"
-                currentBox = null
+                actionCancel()
             }
         }
 
-        Log.i(TAG, "$action at x=${current.x}, y=${current.y}")
+        Log.i(TAG, "$action at x=${boxStartPoint?.x}, y=${boxStartPoint?.y}")
 
         return true
     }
@@ -64,11 +65,19 @@ class BoxDrawingView(context: Context,
         canvas!!.drawPaint(backgroundPaint)
 
         boxen.forEach { box ->
-            canvas.drawRect(
-                box.left, box.top,
-                box.right, box.bottom,
-                boxPaint
-            )
+            val angle = box.angle
+            val px = (box.start.x + box.end.x) / 2
+            val py = (box.start.y + box.end.y) / 2
+            canvas.apply {
+                save()
+                rotate(angle, px, py)
+                drawRect(
+                    box.left, box.top,
+                    box.right, box.bottom,
+                    boxPaint
+                )
+                restore()
+            }
         }
     }
 
@@ -127,11 +136,85 @@ class BoxDrawingView(context: Context,
         }
     }
 
-    private fun updateCurrentBox(current: PointF) {
+    private fun updateCurrentBoxEnd(current: PointF) {
         currentBox?.let {
             it.end = current
             invalidate()
         }
+    }
+
+    private fun updateCurrentBoxAngle(touchPoint2: PointF) {
+        currentBox?.let {
+            val boxOrigin = it.start
+            val pointerOrigin = it.anglePointer
+            val angle2 =
+                Math.atan2(
+                    (touchPoint2.y - boxOrigin.y).toDouble(),
+                    (touchPoint2.x - boxOrigin.x).toDouble())
+                    .toFloat()
+            val angle1 =
+                Math.atan2(
+                    (pointerOrigin.y - boxOrigin.y).toDouble(),
+                    (pointerOrigin.x - boxOrigin.x).toDouble())
+                    .toFloat()
+            var calculatedAngle =
+                Math.toDegrees((angle2 - angle1).toDouble())
+                    .toFloat()
+            if (calculatedAngle < 0) calculatedAngle += 360f
+            it.angle = calculatedAngle
+
+            Log.d(TAG, "Set Box Angle $calculatedAngle");
+            invalidate()
+        }
+    }
+
+    private fun actionCancel() {
+        currentBox = null
+    }
+
+    private fun actionUp(touchPoint: PointF?) {
+        touchPoint?.let {
+            updateCurrentBoxEnd(touchPoint)
+        }
+        currentBox = null
+    }
+
+    private fun actionMove(touchPoint: PointF?,
+                           touchPoint2: PointF?) {
+        touchPoint?.let {
+            updateCurrentBoxEnd(touchPoint)
+        }
+        touchPoint2?.let {
+            updateCurrentBoxAngle(touchPoint2)
+        }
+    }
+
+    private fun actionPointerDown(touchPoint2: PointF?) {
+        currentBox?.let {box ->
+            touchPoint2?.let {
+                box.anglePointer = touchPoint2
+            }
+        }
+    }
+
+    private fun actionDown(touchPoint: PointF?) {
+        touchPoint?.let {
+            currentBox = Box(touchPoint).also {
+                boxen.add(it)
+            }
+        }
+    }
+
+    private fun initTouchPointOnActionEvent(event: MotionEvent?): Pair<PointF?, PointF?> {
+        var touchPoint: PointF? = null
+        var touchPoint2: PointF? = null
+        for (i in 0 until event!!.pointerCount) {
+            if (event.getPointerId(i) == 0)
+                touchPoint = PointF(event.x, event.y)
+            if (event.getPointerId(i) == 1)
+                touchPoint2 = PointF(event.x, event.y)
+        }
+        return touchPoint to touchPoint2
     }
 
 }
