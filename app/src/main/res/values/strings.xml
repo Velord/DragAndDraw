@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">DragAndDraw</string>
+    <string name="box_and_draw_field">Field for draw box</string>
 </resources>

@@ -48,6 +48,7 @@ class BoxDrawingView(context: Context,
             MotionEvent.ACTION_UP -> {
                 action = "ACTION_UP"
                 actionUp(boxStartPoint)
+                actionUpContentDescription(event)
             }
             MotionEvent.ACTION_CANCEL -> {
                 action = "ACTION_CANCEL"
@@ -55,7 +56,8 @@ class BoxDrawingView(context: Context,
             }
         }
 
-        Log.i(TAG, "$action at x=${boxStartPoint?.x}, y=${boxStartPoint?.y}")
+        Log.i(TAG,
+            "$action at x=${boxStartPoint?.x}, y=${boxStartPoint?.y}")
 
         return true
     }
@@ -108,7 +110,8 @@ class BoxDrawingView(context: Context,
         super.onRestoreInstanceState(newState)
     }
 
-    private fun transformToPortraitOrLandscape(box: MutableList<Box>): MutableList<Box> {
+    private fun transformToPortraitOrLandscape(
+        box: MutableList<Box>): MutableList<Box> {
         val metrics = this.resources.displayMetrics
         val dh = metrics.heightPixels
         val dw = metrics.widthPixels
@@ -143,14 +146,14 @@ class BoxDrawingView(context: Context,
         }
     }
 
-    private fun updateCurrentBoxAngle(touchPoint2: PointF) {
+    private fun updateCurrentBoxAngle(anglePoint: PointF) {
         currentBox?.let {
             val boxOrigin = it.start
             val pointerOrigin = it.anglePointer
             val angle2 =
                 Math.atan2(
-                    (touchPoint2.y - boxOrigin.y).toDouble(),
-                    (touchPoint2.x - boxOrigin.x).toDouble())
+                    (anglePoint.y - boxOrigin.y).toDouble(),
+                    (anglePoint.x - boxOrigin.x).toDouble())
                     .toFloat()
             val angle1 =
                 Math.atan2(
@@ -172,40 +175,41 @@ class BoxDrawingView(context: Context,
         currentBox = null
     }
 
-    private fun actionUp(touchPoint: PointF?) {
-        touchPoint?.let {
-            updateCurrentBoxEnd(touchPoint)
+    private fun actionUp(boxStartPoint: PointF?) {
+        boxStartPoint?.let {
+            updateCurrentBoxEnd(boxStartPoint)
         }
         currentBox = null
     }
 
-    private fun actionMove(touchPoint: PointF?,
-                           touchPoint2: PointF?) {
-        touchPoint?.let {
-            updateCurrentBoxEnd(touchPoint)
+    private fun actionMove(boxStartPoint: PointF?,
+                           anglePoint: PointF?) {
+        boxStartPoint?.let {
+            updateCurrentBoxEnd(boxStartPoint)
         }
-        touchPoint2?.let {
-            updateCurrentBoxAngle(touchPoint2)
+        anglePoint?.let {
+            updateCurrentBoxAngle(anglePoint)
         }
     }
 
-    private fun actionPointerDown(touchPoint2: PointF?) {
+    private fun actionPointerDown(anglePoint: PointF?) {
         currentBox?.let {box ->
-            touchPoint2?.let {
-                box.anglePointer = touchPoint2
+            anglePoint?.let {
+                box.anglePointer = anglePoint
             }
         }
     }
 
-    private fun actionDown(touchPoint: PointF?) {
-        touchPoint?.let {
-            currentBox = Box(touchPoint).also {
+    private fun actionDown(boxStartPoint: PointF?) {
+        boxStartPoint?.let {
+            currentBox = Box(boxStartPoint).also {
                 boxen.add(it)
             }
         }
     }
 
-    private fun initTouchPointOnActionEvent(event: MotionEvent?): Pair<PointF?, PointF?> {
+    private fun initTouchPointOnActionEvent(
+        event: MotionEvent?): Pair<PointF?, PointF?> {
         var touchPoint: PointF? = null
         var touchPoint2: PointF? = null
         for (i in 0 until event!!.pointerCount) {
@@ -215,6 +219,27 @@ class BoxDrawingView(context: Context,
                 touchPoint2 = PointF(event.x, event.y)
         }
         return touchPoint to touchPoint2
+    }
+
+    private fun actionUpContentDescription(event: MotionEvent?) {
+        sendAccessibilityEvent(event!!.action)
+        val coveredPercent = calculateCoveredView()
+        this.contentDescription =
+            "View have been covered on $coveredPercent" +
+                    " percent by ${boxen.size} boxes"
+    }
+    //calculation coverage view in percent by boxes
+    private fun calculateCoveredView(): Int {
+        val metrics = this.resources.displayMetrics
+        val dh = metrics.heightPixels
+        val dw = metrics.widthPixels
+        //all point in view
+        val viewPoints = dh * dw
+        //how many point coverage all boxes
+        // todo() must be implemented
+        val boxesPoints = 1
+        //percentage how many boxes coverage all view
+        return (boxesPoints / (viewPoints.toFloat() / 100)).toInt()
     }
 
 }
